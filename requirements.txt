@@ -10,3 +10,6 @@ plotly
 # Machine Learning
 scikit-learn
 xgboost
+
+# WebHosting or Basic GUI
+streamlit

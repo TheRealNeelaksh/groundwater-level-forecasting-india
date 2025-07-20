@@ -47,7 +47,7 @@ if selected_district != "All":
     filtered_data = filtered_data[filtered_data['district_name'].str.title() == selected_district]
 
 # Tabs for Visualization
-viz = st.tabs(["📍 District Analysis", "🌐 State Comparison", "🌀 Seasonal Trend"])
+viz = st.tabs(["📍 District Analysis", "🌐 State Comparison", "🌀 Seasonal Trend", "📈 Model Prediction"])
 
 # --- District View
 with viz[0]:
@@ -120,5 +120,34 @@ with viz[2]:
         height = 900,
         width = 1100
     )
+
+with viz[3]:
+    st.subheader("📈 Actual vs Predicted Groundwater Levels")
+
+    # Load prediction CSV
+    predictions_path = r"G:\Projects\Ground Water Level Estimator - Group Project\models\results\predictions.csv"
+    pred_df = pd.read_csv(predictions_path)
+
+    # Optional: Apply same filters (state, district)
+    pred_df['district_name'] = pred_df['district_name'].str.title()
+    pred_df['state_name'] = pred_df['state_name'].str.title()
+
+    state_filter = pred_df[pred_df['state_name'] == selected_state]
+    if selected_district != "All":
+        state_filter = state_filter[state_filter['district_name'] == selected_district]
+
+    # Plot actual vs predicted
+    if not state_filter.empty:
+        fig4 = px.line(
+            state_filter,
+            x=state_filter.index,
+            y=["actual_level", "predicted_level"],
+            labels={"value": "Groundwater Level (m)", "index": "Sample Index"},
+            title=f"Actual vs Predicted Groundwater Levels – {selected_district}, {selected_state}"
+        )
+        st.plotly_chart(fig4, use_container_width=True)
+    else:
+        st.info("No data available for selected filters.")
+
 st.markdown("---")
 st.caption("Built as a project · Groundwater Level Dashboard 🇮🇳")

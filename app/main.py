@@ -127,6 +127,7 @@ with viz[3]:
     # Load prediction CSV
     predictions_path = Path(__file__).parent.parent / "models" / "results" / "predictions.csv"
 
+
     if predictions_path.exists():
         pred_df = pd.read_csv(predictions_path)
     else:

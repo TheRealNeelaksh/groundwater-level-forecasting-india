@@ -125,7 +125,9 @@ with viz[3]:
     st.subheader("📈 Actual vs Predicted Groundwater Levels")
 
     # Load prediction CSV
-    predictions_path = r"G:\Projects\Ground Water Level Estimator - Group Project\models\results\predictions.csv"
+    predictions_path = "models/results/predictions.csv"
+
+
     pred_df = pd.read_csv(predictions_path)
 
     # Optional: Apply same filters (state, district)

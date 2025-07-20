@@ -125,7 +125,7 @@ with viz[3]:
     st.subheader("📈 Actual vs Predicted Groundwater Levels")
 
     # Load prediction CSV
-    predictions_path = "models/results/predictions.csv"
+    predictions_path = "./models/results/predictions.csv"
 
 
     pred_df = pd.read_csv(predictions_path)

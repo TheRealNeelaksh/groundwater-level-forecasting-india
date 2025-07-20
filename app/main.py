@@ -131,6 +131,8 @@ with viz[3]:
         pred_df = pd.read_csv(predictions_path)
     else:
         st.error(f"Prediction file not found at: {predictions_path}")
+        st.write("Current working directory:", Path.cwd())
+        st.write("Expected prediction path:", predictions_path.resolve())
 
     pred_df = pd.read_csv(predictions_path)
 

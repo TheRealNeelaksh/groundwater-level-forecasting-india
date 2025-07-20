@@ -125,8 +125,12 @@ with viz[3]:
     st.subheader("📈 Actual vs Predicted Groundwater Levels")
 
     # Load prediction CSV
-    predictions_path = "./models/results/predictions.csv"
+    predictions_path = Path(__file__).parent.parent / "models" / "results" / "predictions.csv"
 
+    if predictions_path.exists():
+        pred_df = pd.read_csv(predictions_path)
+    else:
+        st.error(f"Prediction file not found at: {predictions_path}")
 
     pred_df = pd.read_csv(predictions_path)
 

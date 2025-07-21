@@ -131,7 +131,7 @@ with viz[3]:
     pred_df = pd.read_csv(predictions_path)
     pred_df.columns = pred_df.columns.str.strip().str.lower()
 
-    required_cols = {'district_name', 'state_name', 'Actual_Level', 'Predicted_Level'}
+    required_cols = {'district_name', 'state_name', 'actual_level', 'predicted_level'}
     missing_cols = required_cols - set(pred_df.columns)
     if missing_cols:
         st.error(f"❌ Missing columns in predictions.csv: {', '.join(missing_cols)}")
@@ -149,7 +149,7 @@ with viz[3]:
         fig4 = px.line(
             state_filter,
             x=state_filter.index,
-            y=["Actual_Level", "Predicted_Level"],
+            y=["actual_level", "predicted_level"],
             labels={"value": "Groundwater Level (m)", "index": "Sample Index"},
             title=f"Actual vs Predicted Groundwater Levels – {selected_district}, {selected_state}"
         )

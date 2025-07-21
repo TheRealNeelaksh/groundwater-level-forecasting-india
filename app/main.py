@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 
 st.set_page_config(page_title="Groundwater EDA Dashboard", layout="wide")
-st.title("📊 Groundwater Level EDA – India")
+st.title("\U0001F4CA Groundwater Level EDA – India")
 
 # Load Data (assuming cleaned CSV is placed in app folder)
 @st.cache_data
@@ -48,28 +48,7 @@ if selected_district != "All":
     filtered_data = filtered_data[filtered_data['district_name'].str.title() == selected_district]
 
 # Tabs for Visualization
-viz = st.tabs(["📍 District Analysis", "🌐 State Comparison", "🌀 Seasonal Trend", "📈 Model Prediction","🗺️ Geo Distribution"])
-
-# Groundwater Map Across India (Log Scale)
-st.subheader("🗺️ Groundwater Level Map (log scale) – All India")
-
-fig_map, ax = plt.subplots(figsize=(10, 8))
-scatter = ax.scatter(
-    data['longitude'],
-    data['latitude'],
-    c=np.log1p(data['currentlevel']),
-    cmap='viridis',
-    s=30, alpha=0.7
-)
-
-cbar = fig_map.colorbar(scatter, ax=ax, label='log(Groundwater Level + 1)')
-ax.set_title('📍 Groundwater Level (log scale) Across India')
-ax.set_xlabel('Longitude')
-ax.set_ylabel('Latitude')
-ax.grid(True)
-fig_map.tight_layout()
-
-st.pyplot(fig_map)
+viz = st.tabs(["\U0001F4CD District Analysis", "\U0001F30D State Comparison", "\U0001F300 Seasonal Trend", "\U0001F4C8 Model Prediction","\U0001F5FA️ Geo Distribution"])
 
 # --- District View
 with viz[0]:
@@ -82,13 +61,10 @@ with viz[0]:
     fig1.update_layout(yaxis={'categoryorder':'total ascending'})
     st.plotly_chart(fig1, use_container_width=True)
 
-    # ⬇️ Move this block inside the tab
-    st.subheader(f"📽️ District Water Level Change – {selected_state}")
+    st.subheader(f"\U0001F3FD District Water Level Change – {selected_state}")
 
     if 'year' in filtered_data.columns:
         top_districts_yearly = filtered_data.groupby(['year', 'district_name'])['currentlevel'].mean().reset_index()
-
-        # Optional: filter to the 10 most frequent districts in this subset
         top10_districts = top_districts_yearly['district_name'].value_counts().head(10).index.tolist()
         top_districts_yearly = top_districts_yearly[top_districts_yearly['district_name'].isin(top10_districts)]
 
@@ -103,8 +79,6 @@ with viz[0]:
         )
         fig_anim.update_layout(yaxis={'categoryorder':'total ascending'})
         st.plotly_chart(fig_anim, use_container_width=True)
-
-    
 
 # --- State Comparison
 with viz[1]:
@@ -125,11 +99,10 @@ with viz[2]:
                   title="Average Groundwater Level by Season",
                   labels={'currentlevel': 'Avg Water Level (m)'})
     st.plotly_chart(fig3, use_container_width=True)
-    
-    st.subheader("📽️ Seasonal Line Animation (District vs Year)")
+
+    st.subheader("\U0001F3FD Seasonal Line Animation (District vs Year)")
     st.subheader("Under Construction")
 
-    # Filter correctly for selected district
     district_filtered = filtered_data[filtered_data['district_name'].str.title() == selected_district]
 
     line_anim = px.line(
@@ -139,45 +112,39 @@ with viz[2]:
         animation_frame="year",
         title="Seasonal Trend per District (Animated)",
         labels={"currentlevel": "Water Level (m)"},
-        height = 900,
-        width = 1100
+        height=900,
+        width=1100
     )
 
+# --- Model Prediction
 with viz[3]:
-    st.subheader("📈 Actual vs Predicted Groundwater Levels")
+    st.subheader("\U0001F4C8 Actual vs Predicted Groundwater Levels")
 
-    # Load prediction CSV
     predictions_path = Path(__file__).parent.parent / "models" / "results" / "predictions.csv"
 
     if not predictions_path.exists():
         st.error(f"Prediction file not found at: {predictions_path}")
-        st.write("📂 Current working directory:", Path.cwd())
-        st.write("🔍 Expected prediction path:", predictions_path.resolve())
+        st.write("\U0001F4C2 Current working directory:", Path.cwd())
+        st.write("\U0001F50D Expected prediction path:", predictions_path.resolve())
         st.stop()
 
     pred_df = pd.read_csv(predictions_path)
-
-    # Normalize column names
     pred_df.columns = pred_df.columns.str.strip().str.lower()
 
-    # Validate required columns
     required_cols = {'district_name', 'state_name', 'actual_level', 'predicted_level'}
     missing_cols = required_cols - set(pred_df.columns)
     if missing_cols:
         st.error(f"❌ Missing columns in predictions.csv: {', '.join(missing_cols)}")
-        st.dataframe(pred_df.head())  # Show what is there for debugging
+        st.dataframe(pred_df.head())
         st.stop()
 
-    # Title-case for filtering consistency
     pred_df['district_name'] = pred_df['district_name'].str.title()
     pred_df['state_name'] = pred_df['state_name'].str.title()
 
-    # Apply filters
     state_filter = pred_df[pred_df['state_name'] == selected_state]
     if selected_district != "All":
         state_filter = state_filter[state_filter['district_name'] == selected_district]
 
-    # Plot actual vs predicted
     if not state_filter.empty:
         fig4 = px.line(
             state_filter,
@@ -190,27 +157,34 @@ with viz[3]:
     else:
         st.info("ℹ️ No data available for selected filters.")
 
+# --- Geo Distribution Map with toggle
 with viz[4]:
-    st.subheader("🗺️ Groundwater Level Map (log scale) – All India")
+    st.subheader("\U0001F5FA️ Groundwater Level Map (log scale)")
+
+    show_full_map = st.checkbox("Show Full India Map", value=True)
+
+    if show_full_map:
+        map_df = data.copy()
+    else:
+        map_df = filtered_data.copy()
 
     fig_map, ax = plt.subplots(figsize=(10, 8))
     scatter = ax.scatter(
-        data['longitude'],
-        data['latitude'],
-        c=np.log1p(data['currentlevel']),
+        map_df['longitude'],
+        map_df['latitude'],
+        c=np.log1p(map_df['currentlevel']),
         cmap='viridis',
         s=30, alpha=0.7
     )
 
     cbar = fig_map.colorbar(scatter, ax=ax, label='log(Groundwater Level + 1)')
-    ax.set_title('📍 Groundwater Level (log scale) Across India')
+    ax.set_title('📍 Groundwater Level (log scale)')
     ax.set_xlabel('Longitude')
     ax.set_ylabel('Latitude')
     ax.grid(True)
     fig_map.tight_layout()
 
     st.pyplot(fig_map)
-
 
 st.markdown("---")
 st.caption("Built as a project · Groundwater Level Dashboard 🇮🇳")

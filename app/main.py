@@ -127,20 +127,30 @@ with viz[3]:
     # Load prediction CSV
     predictions_path = Path(__file__).parent.parent / "models" / "results" / "predictions.csv"
 
-
-    if predictions_path.exists():
-        pred_df = pd.read_csv(predictions_path)
-    else:
+    if not predictions_path.exists():
         st.error(f"Prediction file not found at: {predictions_path}")
-        st.write("Current working directory:", Path.cwd())
-        st.write("Expected prediction path:", predictions_path.resolve())
+        st.write("📂 Current working directory:", Path.cwd())
+        st.write("🔍 Expected prediction path:", predictions_path.resolve())
+        st.stop()
 
     pred_df = pd.read_csv(predictions_path)
 
-    # Optional: Apply same filters (state, district)
+    # Normalize column names
+    pred_df.columns = pred_df.columns.str.strip().str.lower()
+
+    # Validate required columns
+    required_cols = {'district_name', 'state_name', 'actual_level', 'predicted_level'}
+    missing_cols = required_cols - set(pred_df.columns)
+    if missing_cols:
+        st.error(f"❌ Missing columns in predictions.csv: {', '.join(missing_cols)}")
+        st.dataframe(pred_df.head())  # Show what is there for debugging
+        st.stop()
+
+    # Title-case for filtering consistency
     pred_df['district_name'] = pred_df['district_name'].str.title()
     pred_df['state_name'] = pred_df['state_name'].str.title()
 
+    # Apply filters
     state_filter = pred_df[pred_df['state_name'] == selected_state]
     if selected_district != "All":
         state_filter = state_filter[state_filter['district_name'] == selected_district]
@@ -156,7 +166,7 @@ with viz[3]:
         )
         st.plotly_chart(fig4, use_container_width=True)
     else:
-        st.info("No data available for selected filters.")
+        st.info("ℹ️ No data available for selected filters.")
 
 st.markdown("---")
 st.caption("Built as a project · Groundwater Level Dashboard 🇮🇳")

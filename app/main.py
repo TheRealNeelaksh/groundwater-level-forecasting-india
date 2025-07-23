@@ -176,23 +176,32 @@ with viz[3]:
 with viz[4]:
     st.subheader("🗺️ Groundwater Level Map (log scale) – All India")
 
-    fig_map, ax = plt.subplots(figsize=(10, 8))
-    scatter = ax.scatter(
-        data['longitude'],
-        data['latitude'],
-        c=np.log1p(data['currentlevel']),
-        cmap='viridis',
-        s=30, alpha=0.7
-    )
+    # Optional debug output
+    st.write("🧪 Map Data Sample:")
+    st.write(data[['latitude', 'longitude', 'currentlevel']].dropna().head())
 
-    cbar = fig_map.colorbar(scatter, ax=ax, label='log(Groundwater Level + 1)')
-    ax.set_title('📍 Groundwater Level (log scale) Across India')
-    ax.set_xlabel('Longitude')
-    ax.set_ylabel('Latitude')
-    ax.grid(True)
-    fig_map.tight_layout()
+    # Ensure lat/lon/currentlevel exist
+    if {'longitude', 'latitude', 'currentlevel'}.issubset(data.columns):
+        fig_map, ax = plt.subplots(figsize=(10, 8))
+        scatter = ax.scatter(
+            data['longitude'],
+            data['latitude'],
+            c=np.log1p(data['currentlevel']),
+            cmap='viridis',
+            s=30, alpha=0.7
+        )
 
-    st.pyplot(fig_map)
+        cbar = fig_map.colorbar(scatter, ax=ax, label='log(Groundwater Level + 1)')
+        ax.set_title('📍 Groundwater Level (log scale) Across India')
+        ax.set_xlabel('Longitude')
+        ax.set_ylabel('Latitude')
+        ax.grid(True)
+        fig_map.tight_layout()
+
+        st.pyplot(fig_map)
+    else:
+        st.warning("⚠️ Required columns `longitude`, `latitude`, or `currentlevel` missing in dataset.")
+
 
 
 st.markdown("---")

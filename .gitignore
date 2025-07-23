@@ -1,2 +1,6 @@
 venv/
 models/trained_model/
+*.pkl
+*.pt
+*.h5
+*.joblib

@@ -174,33 +174,36 @@ with viz[3]:
         st.info("ℹ️ No data available for selected filters.")
 
 with viz[4]:
-    st.subheader("🗺️ Groundwater Level Map (log scale) – All India")
+    st.subheader("🗺️ Groundwater Level Map (Log Scale) – India (Interactive)")
 
-    # Optional debug output
-    st.write("🧪 Map Data Sample:")
-    st.write(data[['latitude', 'longitude', 'currentlevel']].dropna().head())
+    # Ensure longitude & latitude are numeric
+    data['latitude'] = pd.to_numeric(data['latitude'], errors='coerce')
+    data['longitude'] = pd.to_numeric(data['longitude'], errors='coerce')
+    map_data = data.dropna(subset=['latitude', 'longitude', 'currentlevel'])
 
-    # Ensure lat/lon/currentlevel exist
-    if {'longitude', 'latitude', 'currentlevel'}.issubset(data.columns):
-        fig_map, ax = plt.subplots(figsize=(10, 8))
-        scatter = ax.scatter(
-            data['longitude'],
-            data['latitude'],
-            c=np.log1p(data['currentlevel']),
-            cmap='viridis',
-            s=30, alpha=0.7
+    if not map_data.empty:
+        fig_map = px.scatter_geo(
+            map_data,
+            lat='latitude',
+            lon='longitude',
+            color=np.log1p(map_data['currentlevel']),
+            color_continuous_scale="Viridis",
+            hover_name="district_name",
+            hover_data={"state_name": True, "currentlevel": True, "latitude": False, "longitude": False},
+            projection="natural earth",
+            title="📍 Log-Scaled Groundwater Levels Across India"
         )
-
-        cbar = fig_map.colorbar(scatter, ax=ax, label='log(Groundwater Level + 1)')
-        ax.set_title('📍 Groundwater Level (log scale) Across India')
-        ax.set_xlabel('Longitude')
-        ax.set_ylabel('Latitude')
-        ax.grid(True)
-        fig_map.tight_layout()
-
-        st.pyplot(fig_map)
+        fig_map.update_geos(
+            fitbounds="locations",
+            visible=False
+        )
+        fig_map.update_layout(
+            coloraxis_colorbar=dict(title="log(Level + 1)"),
+            margin={"r":0,"t":50,"l":0,"b":0}
+        )
+        st.plotly_chart(fig_map, use_container_width=True)
     else:
-        st.warning("⚠️ Required columns `longitude`, `latitude`, or `currentlevel` missing in dataset.")
+        st.warning("⚠️ Data for mapping is missing latitude or longitude.")
 
 
 

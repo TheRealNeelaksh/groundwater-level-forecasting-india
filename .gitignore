@@ -1,6 +1,6 @@
 venv/
-models/trained_model/
+# Ignore models
 *.pkl
-*.pt
-*.h5
 *.joblib
+models/trained_model/
+models/trainingNotebook/models/

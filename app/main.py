@@ -48,28 +48,11 @@ if selected_district != "All":
     filtered_data = filtered_data[filtered_data['district_name'].str.title() == selected_district]
 
 # Tabs for Visualization
-viz = st.tabs(["📍 District Analysis", "🌐 State Comparison", "🌀 Seasonal Trend", "📈 Model Prediction","🗺️ Geo Distribution"])
-
-# Groundwater Map Across India (Log Scale)
-st.subheader("🗺️ Groundwater Level Map (log scale) – All India")
-
-fig_map, ax = plt.subplots(figsize=(10, 8))
-scatter = ax.scatter(
-    data['longitude'],
-    data['latitude'],
-    c=np.log1p(data['currentlevel']),
-    cmap='viridis',
-    s=30, alpha=0.7
-)
-
-cbar = fig_map.colorbar(scatter, ax=ax, label='log(Groundwater Level + 1)')
-ax.set_title('📍 Groundwater Level (log scale) Across India')
-ax.set_xlabel('Longitude')
-ax.set_ylabel('Latitude')
-ax.grid(True)
-fig_map.tight_layout()
-
-st.pyplot(fig_map)
+viz = st.tabs(["📍 District Analysis",
+               "🌐 State Comparison", 
+               "🌀 Seasonal Trend", 
+                "📈 Model Prediction",
+                "🗺️ Geo Distribution"])
 
 # --- District View
 with viz[0]:

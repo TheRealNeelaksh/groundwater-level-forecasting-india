@@ -7,6 +7,7 @@ from pathlib import Path
 import numpy as np
 import folium
 from folium import plugins
+import plotly.graph_objects as go # Import plotly.graph_objects
 
 st.set_page_config(page_title="Groundwater EDA Dashboard", layout="wide")
 st.title("Groundwater Level EDA - India")
@@ -322,47 +323,40 @@ if page_selection == "Model Prediction":
             y_range_buffer = (overall_max_y - overall_min_y) * 0.1
             y_axis_range = [overall_min_y - y_range_buffer, overall_max_y + y_range_buffer]
 
-            # Convert to long format for plotting multiple lines
-            df_long = state_filter.melt(
-                id_vars=['plot_index', 'state_name', 'district_name'],
-                value_vars=['currentlevel', 'predicted_currentlevel'],
-                var_name='level_type',
-                value_name='level_value'
+            # Create individual scatter traces for Actual and Predicted
+            trace_actual = go.Scatter(
+                x=state_filter["plot_index"],
+                y=state_filter["currentlevel"],
+                mode='lines+markers',
+                name='Actual Level',
+                marker=dict(color='blue', size=6),
+                line=dict(color='blue', width=2),
+                hoverinfo='text',
+                text=[f"Actual: {val:.2f}m<br>State: {s}<br>District: {d}" for val, s, d in zip(state_filter['currentlevel'], state_filter['state_name'], state_filter['district_name'])]
             )
-            # Map level_type to more readable names for legend/hover
-            df_long['level_type'] = df_long['level_type'].map({
-                'currentlevel': 'Actual Level',
-                'predicted_currentlevel': 'Predicted Level'
-            })
 
-            fig4 = px.line(
-                df_long,
-                x="plot_index", # Use the new simple index column for x-axis
-                y="level_value", # Plot the value
-                color="level_type", # Differentiate lines by level type
-                labels={
-                    "level_value": "Groundwater Level (m)", 
-                    "plot_index": "Data Point Index",
-                    "level_type": "Level Type" # Label for the color legend
-                },
-                title=f"Actual vs Predicted Groundwater Levels – {selected_district}, {selected_state}",
-                markers=True, # Add markers for data points
-                template="plotly_white", # Use a clean white background template
-                hover_data={ # Customize hover information
-                    "level_value": ":.2f", # Show value with 2 decimal places
-                    "level_type": False, # Hide level_type from default hover box as it's in color
-                    "state_name": True,
-                    "district_name": True,
-                    "plot_index": False # Hide the new index from hover if not needed
-                }
+            trace_predicted = go.Scatter(
+                x=state_filter["plot_index"],
+                y=state_filter["predicted_currentlevel"],
+                mode='lines+markers',
+                name='Predicted Level',
+                marker=dict(color='red', size=6),
+                line=dict(color='red', width=2),
+                hoverinfo='text',
+                text=[f"Predicted: {val:.2f}m<br>State: {s}<br>District: {d}" for val, s, d in zip(state_filter['predicted_currentlevel'], state_filter['state_name'], state_filter['district_name'])]
             )
+
+            fig4 = go.Figure(data=[trace_actual, trace_predicted])
+
             fig4.update_layout(
-                hovermode="x unified", # Show unified hover for all traces at an x-position
-                xaxis_title="Data Point Index", # Explicit x-axis title
-                yaxis_title="Groundwater Level (m)", # Explicit y-axis title
-                yaxis_range=y_axis_range, # Set the y-axis range
-                xaxis_range=[-1, len(state_filter)], # Explicitly set x-axis range from -1 to length of data
-                render_mode='webgl' # Use WebGL for potentially better rendering performance
+                title=f"Actual vs Predicted Groundwater Levels – {selected_district}, {selected_state}",
+                xaxis_title="Data Point Index",
+                yaxis_title="Groundwater Level (m)",
+                yaxis_range=y_axis_range,
+                xaxis_range=[-1, len(state_filter)],
+                template="plotly_white",
+                hovermode="x unified",
+                height=600
             )
             st.plotly_chart(fig4, use_container_width=True)
     else:

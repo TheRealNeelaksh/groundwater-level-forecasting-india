@@ -281,30 +281,46 @@ if page_selection == "Model Prediction":
     if selected_district != "All":
         state_filter = state_filter[state_filter['district_name'] == selected_district]
 
+    # --- Start of Plotting Logic for Model Prediction ---
     if not state_filter.empty:
-        fig4 = px.line(
-            state_filter,
-            x=state_filter.index,
-            y=["currentlevel", "predicted_currentlevel"], 
-            labels={
-                "value": "Groundwater Level (m)", 
-                "index": "Sample Index",
-                "currentlevel": "Actual Level", # Custom label for legend/hover
-                "predicted_currentlevel": "Predicted Level" # Custom label for legend/hover
-            },
-            title=f"Actual vs Predicted Groundwater Levels – {selected_district}, {selected_state}",
-            markers=True, # Add markers for data points
-            template="plotly_white", # Use a clean white background template
-            hover_data={ # Customize hover information
-                "currentlevel": ":.2f",
-                "predicted_currentlevel": ":.2f",
-                "state_name": True,
-                "district_name": True,
-                "index": False # Hide index from hover
-            }
-        )
-        fig4.update_layout(hovermode="x unified") # Show unified hover for all traces at an x-position
-        st.plotly_chart(fig4, use_container_width=True)
+        # Ensure relevant columns are numeric and handle potential NaNs
+        state_filter['currentlevel'] = pd.to_numeric(state_filter['currentlevel'], errors='coerce')
+        state_filter['predicted_currentlevel'] = pd.to_numeric(state_filter['predicted_currentlevel'], errors='coerce')
+        
+        # Drop rows where plotting values are NaN after conversion
+        state_filter.dropna(subset=['currentlevel', 'predicted_currentlevel'], inplace=True)
+
+        if state_filter.empty:
+            st.info("No valid numeric data points remain for plotting after cleaning in the prediction dataset.")
+            # Do not return here, let the outer 'else' handle the "No data available" message.
+        else:
+            # Create a simple numerical index for plotting to avoid issues with original index
+            state_filter = state_filter.reset_index(drop=True)
+            state_filter['plot_index'] = state_filter.index # Use a simple integer index for x-axis
+
+            fig4 = px.line(
+                state_filter,
+                x="plot_index", # Use the new simple index column for x-axis
+                y=["currentlevel", "predicted_currentlevel"], 
+                labels={
+                    "value": "Groundwater Level (m)", 
+                    "plot_index": "Data Point Index", # Label for the new x-axis
+                    "currentlevel": "Actual Level", # Custom label for legend/hover
+                    "predicted_currentlevel": "Predicted Level" # Custom label for legend/hover
+                },
+                title=f"Actual vs Predicted Groundwater Levels – {selected_district}, {selected_state}",
+                markers=True, # Add markers for data points
+                template="plotly_white", # Use a clean white background template
+                hover_data={ # Customize hover information
+                    "currentlevel": ":.2f",
+                    "predicted_currentlevel": ":.2f",
+                    "state_name": True,
+                    "district_name": True,
+                    "plot_index": False # Hide the new index from hover if not needed
+                }
+            )
+            fig4.update_layout(hovermode="x unified") # Show unified hover for all traces at an x-position
+            st.plotly_chart(fig4, use_container_width=True)
     else:
         st.info("No data available for selected filters in the prediction dataset.")
 

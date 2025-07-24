@@ -36,12 +36,10 @@ def load_data_and_status():
 
         df = pd.read_csv(data_path)
         
-        # --- NEW CHECK FOR EMPTY DATAFRAME ---
         if df.empty:
             messages.append(("error", f"❌ Error: The file '{data_path.name}' was loaded but appears to be empty or unreadable by pandas."))
             messages.append(("error", "Please check if the CSV file contains data and is not corrupted."))
             return None, None, messages
-        # --- END NEW CHECK ---
 
         messages.append(("success", f"Dataset '{data_path.name}' loaded successfully! Initial shape: {df.shape}"))
 
@@ -60,12 +58,10 @@ def load_data_and_status():
         messages.append(("info", "State and District names normalized."))
 
         # Create mapping dictionaries from the main dataset (groundwater-DATASET.csv)
-        # Ensure 'state_code' and 'district_code' columns exist in groundwater-DATASET.csv
         state_code_to_name_map = {}
         district_code_to_name_map = {}
 
         if 'state_code' in df.columns and 'state_name' in df.columns:
-            # Create a mapping from state_code (as string) to state_name
             temp_df_state_map = df[['state_code', 'state_name']].drop_duplicates().dropna()
             state_code_to_name_map = dict(zip(temp_df_state_map['state_code'].astype(str), temp_df_state_map['state_name']))
             messages.append(("info", f"Created state code to name map with {len(state_code_to_name_map)} entries."))
@@ -73,7 +69,6 @@ def load_data_and_status():
             messages.append(("warning", "Could not create state code to name map: 'state_code' or 'state_name' column missing in main dataset."))
 
         if 'district_code' in df.columns and 'district_name' in df.columns:
-            # Create a mapping from district_code (as string) to district_name
             temp_df_district_map = df[['district_code', 'district_name']].drop_duplicates().dropna()
             district_code_to_name_map = dict(zip(temp_df_district_map['district_code'].astype(str), temp_df_district_map['district_name']))
             messages.append(("info", f"Created district code to name map with {len(district_code_to_name_map)} entries."))
@@ -83,7 +78,6 @@ def load_data_and_status():
 
         # Date parsing
         df['date'] = pd.to_datetime(df['date'], errors='coerce')
-        # Drop rows where essential columns for analysis/mapping are missing
         df.dropna(subset=['date', 'currentlevel', 'latitude', 'longitude', 'state_name', 'district_name'], inplace=True)
         messages.append(("info", f"Dropped rows with missing essential data. Remaining rows: {df.shape[0]}"))
 
@@ -122,10 +116,8 @@ with initial_loading_placeholder.container():
             st.success(msg_text)
         elif msg_type == "error":
             st.error(msg_text)
-            # If there's an error, stop the app after displaying it
             st.stop()
 
-# If data loaded successfully, set a session state flag and clear the placeholder
 if data is not None and mapping_dicts is not None:
     initial_loading_placeholder.empty()
     if 'dashboard_ready_message_shown' not in st.session_state:
@@ -136,7 +128,7 @@ if data is not None and mapping_dicts is not None:
         ready_message_placeholder.success("Dashboard ready! Select an analysis tab from the sidebar.")
         st.session_state.dashboard_ready_message_shown = True
 else:
-    st.stop() # Stop if data loading failed
+    st.stop()
 
 # ----------------- SIDEBAR FILTERS ---------------------
 st.sidebar.header("Filter the data")
@@ -290,22 +282,26 @@ if page_selection == "Model Prediction":
         # Drop rows where plotting values are NaN after conversion
         state_filter.dropna(subset=['currentlevel', 'predicted_currentlevel'], inplace=True)
 
-        # --- Debugging lines for Model Prediction Tab ---
-        st.write("--- Debugging Model Prediction Tab ---")
-        st.write(f"Shape of state_filter before plotting: {state_filter.shape}")
-        st.write("Head of state_filter before plotting:")
-        st.dataframe(state_filter[['state_name', 'district_name', 'currentlevel', 'predicted_currentlevel']].head())
-        st.write(f"Min Actual Level: {state_filter['currentlevel'].min():.2f}, Max Actual Level: {state_filter['currentlevel'].max():.2f}")
-        st.write(f"Min Predicted Level: {state_filter['predicted_currentlevel'].min():.2f}, Max Predicted Level: {state_filter['predicted_currentlevel'].max():.2f}")
-        st.write("--- End Debugging Model Prediction Tab ---")
-        # --- End Debugging lines ---
-
         if state_filter.empty:
             st.info("No valid numeric data points remain for plotting after cleaning in the prediction dataset.")
         else:
             # Create a simple numerical index for plotting to avoid issues with original index
             state_filter = state_filter.reset_index(drop=True)
             state_filter['plot_index'] = state_filter.index # Use a simple integer index for x-axis
+
+            # Determine y-axis range based on actual and predicted data
+            min_y = state_filter['currentlevel'].min()
+            max_y = state_filter['currentlevel'].max()
+            min_pred_y = state_filter['predicted_currentlevel'].min()
+            max_pred_y = state_filter['predicted_currentlevel'].max()
+
+            # Take the overall min/max for the y-axis range
+            overall_min_y = min(min_y, min_pred_y)
+            overall_max_y = max(max_y, max_pred_y)
+            
+            # Add a small buffer to the min/max for better visualization
+            y_range_buffer = (overall_max_y - overall_min_y) * 0.1
+            y_axis_range = [overall_min_y - y_range_buffer, overall_max_y + y_range_buffer]
 
             fig4 = px.line(
                 state_filter,
@@ -326,9 +322,21 @@ if page_selection == "Model Prediction":
                     "state_name": True,
                     "district_name": True,
                     "plot_index": False # Hide the new index from hover if not needed
+                },
+                line_group="plot_index", # Explicitly group lines by plot_index
+                color_discrete_map={ # Define colors for each line
+                    "currentlevel": "blue",
+                    "predicted_currentlevel": "red"
                 }
             )
-            fig4.update_layout(hovermode="x unified") # Show unified hover for all traces at an x-position
+            fig4.update_layout(
+                hovermode="x unified", # Show unified hover for all traces at an x-position
+                xaxis_title="Data Point Index", # Explicit x-axis title
+                yaxis_title="Groundwater Level (m)", # Explicit y-axis title
+                yaxis_range=y_axis_range, # Set the y-axis range
+                xaxis_range=[-1, len(state_filter)], # Explicitly set x-axis range from -1 to length of data
+                render_mode='webgl' # Use WebGL for potentially better rendering performance
+            )
             st.plotly_chart(fig4, use_container_width=True)
     else:
         st.info("No data available for selected filters in the prediction dataset.")

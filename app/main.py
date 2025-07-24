@@ -28,6 +28,14 @@ def load_data_and_status():
             return None, None, messages
 
         df = pd.read_csv(data_path)
+        
+        # --- NEW CHECK FOR EMPTY DATAFRAME ---
+        if df.empty:
+            messages.append(("error", f"❌ Error: The file '{data_path.name}' was loaded but appears to be empty or unreadable by pandas."))
+            messages.append(("error", "Please check if the CSV file contains data and is not corrupted."))
+            return None, None, messages
+        # --- END NEW CHECK ---
+
         messages.append(("success", f"Dataset '{data_path.name}' loaded successfully! Initial shape: {df.shape}"))
 
         # Normalize column names

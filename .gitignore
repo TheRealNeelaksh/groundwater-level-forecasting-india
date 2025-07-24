@@ -3,4 +3,3 @@ venv/
 *.pkl
 *.joblib
 models/trained_model/
-models/trainingNotebook/models/

@@ -322,12 +322,8 @@ if page_selection == "Model Prediction":
                     "state_name": True,
                     "district_name": True,
                     "plot_index": False # Hide the new index from hover if not needed
-                },
-                line_group="plot_index", # Explicitly group lines by plot_index
-                color_discrete_map={ # Define colors for each line
-                    "currentlevel": "blue",
-                    "predicted_currentlevel": "red"
                 }
+                # Removed line_group and color_discrete_map as they were causing issues
             )
             fig4.update_layout(
                 hovermode="x unified", # Show unified hover for all traces at an x-position

@@ -77,9 +77,8 @@ def load_data_and_status():
         # Date parsing
         df['date'] = pd.to_datetime(df['date'], errors='coerce')
         # Drop rows where essential columns for analysis/mapping are missing
-        initial_rows = df.shape[0]
         df.dropna(subset=['date', 'currentlevel', 'latitude', 'longitude', 'state_name', 'district_name'], inplace=True)
-        messages.append(("info", f"Dropped {initial_rows - df.shape[0]} rows with missing essential data (date, currentlevel, lat, long, state, district). Remaining rows: {df.shape[0]}"))
+        messages.append(("info", f"Dropped rows with missing essential data. Remaining rows: {df.shape[0]}"))
 
         df['month'] = df['date'].dt.month
         df['year'] = df['date'].dt.year
@@ -128,27 +127,21 @@ if data is not None and mapping_dicts is not None:
     if not st.session_state.dashboard_ready_message_shown:
         ready_message_placeholder = st.empty()
         ready_message_placeholder.success("Dashboard ready! Select an analysis tab from the sidebar.")
-        # Mark the message as shown for the session
         st.session_state.dashboard_ready_message_shown = True
-        # Note: Streamlit doesn't have a built-in "sleep and clear" for messages without blocking.
-        # This message will clear on the next rerun (e.g., filter change or tab change).
-        # For a strict 5-6 sec disappearance, a JavaScript solution would be needed.
 else:
     st.stop() # Stop if data loading failed
 
 # ----------------- SIDEBAR FILTERS ---------------------
 st.sidebar.header("Filter the data")
-# Ensure states list is not empty before creating selectbox
 if not data['state_name'].dropna().empty:
     states = sorted(data['state_name'].dropna().unique())
     selected_state = st.sidebar.selectbox("Select State", states)
 else:
     st.sidebar.warning("No states available in the data for selection.")
-    selected_state = None # Set to None if no states are available
+    selected_state = None 
 
-filtered_data = data[data['state_name'] == selected_state] if selected_state else pd.DataFrame() # Handle empty filtered_data
+filtered_data = data[data['state_name'] == selected_state] if selected_state else pd.DataFrame()
 
-# Ensure districts list is not empty before creating selectbox
 if not filtered_data['district_name'].dropna().empty:
     districts = sorted(filtered_data['district_name'].dropna().unique())
     selected_district = st.sidebar.selectbox("Select District", ["All"] + districts)
@@ -240,7 +233,6 @@ if page_selection == "Model Prediction":
 
     predictions_path = Path(__file__).resolve().parent.parent / "models" / "trainingNotebook" / "models" / "results" / "groundwater_predictions.csv"
     
-    # Check if prediction file exists and provide clear error if not
     if not predictions_path.exists():
         st.error(f"❌ Prediction file not found at: `{predictions_path}`")
         st.warning("Please ensure 'groundwater_predictions.csv' is located at "
@@ -255,19 +247,16 @@ if page_selection == "Model Prediction":
     pred_df.columns = pred_df.columns.str.strip().str.lower()
     
     # Apply mapping from state_code/district_code to state_name/district_name
-    # Ensure the columns 'state_code' and 'district_code' exist in pred_df
     if 'state_code' in pred_df.columns and 'state_map' in mapping_dicts:
         pred_df['state_name_mapped'] = pred_df['state_code'].astype(str).map(mapping_dicts['state_map']).fillna(pred_df['state_name'])
-        pred_df['state_name'] = pred_df['state_name_mapped'] # Overwrite with mapped name
+        pred_df['state_name'] = pred_df['state_name_mapped']
     else:
-        # Fallback if mapping not available or state_code missing in pred_df
         pred_df['state_name'] = pred_df['state_name'].fillna('').astype(str).str.strip().str.title()
 
     if 'district_code' in pred_df.columns and 'district_map' in mapping_dicts:
         pred_df['district_name_mapped'] = pred_df['district_code'].astype(str).map(mapping_dicts['district_map']).fillna(pred_df['district_name'])
-        pred_df['district_name'] = pred_df['district_name_mapped'] # Overwrite with mapped name
+        pred_df['district_name'] = pred_df['district_name_mapped']
     else:
-        # Fallback if mapping not available or district_code missing in pred_df
         pred_df['district_name'] = pred_df['district_name'].fillna('').astype(str).str.strip().str.title()
 
 
@@ -278,40 +267,36 @@ if page_selection == "Model Prediction":
         st.error(f"Missing columns in prediction file: {', '.join(missing_cols)}")
         st.warning(f"Expected columns: {required_cols}. Found columns: {set(pred_df.columns)}")
         st.dataframe(pred_df.head())
-        st.stop() # Stop if critical columns are missing
-
-    # --- ADDED DEBUGGING LINES FOR PREDICTION TAB ---
-    st.write("--- Debugging Model Prediction Tab ---")
-    st.write(f"Selected State for filtering: '{selected_state}'")
-    st.write(f"Selected District for filtering: '{selected_district}'")
-    st.write(f"Unique 'state_name' in prediction data (first 10): {pred_df['state_name'].dropna().unique()[:10].tolist()}...")
-    
-    # Filter by state_name first to get relevant districts
-    temp_state_filter_pred = pred_df[pred_df['state_name'] == selected_state]
-    if not temp_state_filter_pred.empty:
-        st.write(f"Unique 'district_name' for '{selected_state}' in prediction data (first 10): {temp_state_filter_pred['district_name'].dropna().unique()[:10].tolist()}...")
-    else:
-        st.write(f"No data for '{selected_state}' found in prediction dataset's 'state_name'.")
+        st.stop()
 
     # Filtering using the correct column names: 'state_name' and 'district_name'
     state_filter = pred_df[pred_df['state_name'] == selected_state]
-    st.write(f"Shape after state_name filter: {state_filter.shape}") # Debugging line
-    
     if selected_district != "All":
         state_filter = state_filter[state_filter['district_name'] == selected_district]
-        st.write(f"Shape after district_name filter: {state_filter.shape}") # Debugging line
-    st.write("--- End Debugging Model Prediction Tab ---")
-    # --- END ADDED DEBUGGING LINES ---
 
     if not state_filter.empty:
         fig4 = px.line(
             state_filter,
             x=state_filter.index,
-            # Changed y-axis columns to 'currentlevel' and 'predicted_currentlevel'
             y=["currentlevel", "predicted_currentlevel"], 
-            labels={"value": "Groundwater Level (m)", "index": "Sample Index"},
-            title=f"Actual vs Predicted Groundwater Levels – {selected_district}, {selected_state}"
+            labels={
+                "value": "Groundwater Level (m)", 
+                "index": "Sample Index",
+                "currentlevel": "Actual Level", # Custom label for legend/hover
+                "predicted_currentlevel": "Predicted Level" # Custom label for legend/hover
+            },
+            title=f"Actual vs Predicted Groundwater Levels – {selected_district}, {selected_state}",
+            markers=True, # Add markers for data points
+            template="plotly_white", # Use a clean white background template
+            hover_data={ # Customize hover information
+                "currentlevel": ":.2f",
+                "predicted_currentlevel": ":.2f",
+                "state_name": True,
+                "district_name": True,
+                "index": False # Hide index from hover
+            }
         )
+        fig4.update_layout(hovermode="x unified") # Show unified hover for all traces at an x-position
         st.plotly_chart(fig4, use_container_width=True)
     else:
         st.info("No data available for selected filters in the prediction dataset.")
@@ -320,14 +305,11 @@ if page_selection == "Model Prediction":
 if page_selection == "Geo Distribution":
     st.subheader("Groundwater Level Map - India (Plotly Express)")
 
-    # Directly use filtered_data for the map to ensure memory efficiency
-    # This data already contains only the selected state/district's data
     map_display_data = filtered_data 
 
     if not map_display_data.empty:
-        with st.spinner("🌀 Generating map..."): # Specific spinner for map generation
+        with st.spinner("🌀 Generating map..."):
             try:
-                # Determine map title based on selected filters
                 map_title = f"Groundwater Levels in {selected_state}"
                 if selected_district != "All":
                     map_title = f"Groundwater Levels in {selected_district}, {selected_state}"
@@ -345,10 +327,9 @@ if page_selection == "Geo Distribution":
                 )
                 fig_map.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
                 
-                # Auto-zoom to fit all locations in the filtered data
                 fig_map.update_geos(
                     fitbounds="locations", 
-                    visible=False, # Hides the default map frame
+                    visible=False, 
                 ) 
 
                 st.plotly_chart(fig_map, use_container_width=True)

@@ -20,8 +20,15 @@ def load_data_and_status():
     messages = []
     try:
         messages.append(("info", "Attempting to load data..."))
-        data_path = Path(__file__).parent.parent / "dataset" / "groundwater-DATASET.csv"
         
+        # Get the absolute path of the current script
+        script_path = Path(__file__).resolve()
+        # Navigate up two directories from the script to the project root, then to 'dataset'
+        data_path = script_path.parent.parent / "dataset" / "groundwater-DATASET.csv"
+        
+        messages.append(("info", f"Attempting to load from absolute path: `{data_path}`"))
+        messages.append(("info", f"Current working directory: `{Path.cwd()}`"))
+
         if not data_path.exists():
             messages.append(("error", f"🚨 Fatal Error: Dataset file not found at: `{data_path}`"))
             messages.append(("error", "Please ensure 'groundwater-DATASET.csv' is in the 'dataset' folder, which should be a sibling to your 'app' folder (where this script is located)."))

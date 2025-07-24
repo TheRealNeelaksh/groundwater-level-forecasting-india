@@ -290,6 +290,16 @@ if page_selection == "Model Prediction":
         # Drop rows where plotting values are NaN after conversion
         state_filter.dropna(subset=['currentlevel', 'predicted_currentlevel'], inplace=True)
 
+        # --- Debugging lines for Model Prediction Tab ---
+        st.write("--- Debugging Model Prediction Tab ---")
+        st.write(f"Shape of state_filter before plotting: {state_filter.shape}")
+        st.write("Head of state_filter before plotting:")
+        st.dataframe(state_filter[['state_name', 'district_name', 'currentlevel', 'predicted_currentlevel']].head())
+        st.write(f"Min Actual Level: {state_filter['currentlevel'].min():.2f}, Max Actual Level: {state_filter['currentlevel'].max():.2f}")
+        st.write(f"Min Predicted Level: {state_filter['predicted_currentlevel'].min():.2f}, Max Predicted Level: {state_filter['predicted_currentlevel'].max():.2f}")
+        st.write("--- End Debugging Model Prediction Tab ---")
+        # --- End Debugging lines ---
+
         if state_filter.empty:
             st.info("No valid numeric data points remain for plotting after cleaning in the prediction dataset.")
         else:

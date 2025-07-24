@@ -238,10 +238,28 @@ if page_selection == "Model Prediction":
         st.dataframe(pred_df.head())
         st.stop() # Stop if critical columns are missing
 
+    # --- ADDED DEBUGGING LINES FOR PREDICTION TAB ---
+    st.write("--- Debugging Model Prediction Tab ---")
+    st.write(f"Selected State for filtering: '{selected_state}'")
+    st.write(f"Selected District for filtering: '{selected_district}'")
+    st.write(f"Unique 'state_name' in prediction data (first 10): {pred_df['state_name'].dropna().unique()[:10].tolist()}...")
+    
+    # Filter by state_name first to get relevant districts
+    temp_state_filter_pred = pred_df[pred_df['state_name'] == selected_state]
+    if not temp_state_filter_pred.empty:
+        st.write(f"Unique 'district_name' for '{selected_state}' in prediction data (first 10): {temp_state_filter_pred['district_name'].dropna().unique()[:10].tolist()}...")
+    else:
+        st.write(f"No data for '{selected_state}' found in prediction dataset's 'state_name'.")
+
     # Filtering using the correct column names: 'state_name' and 'district_name'
     state_filter = pred_df[pred_df['state_name'] == selected_state]
+    st.write(f"Shape after state_name filter: {state_filter.shape}") # Debugging line
+    
     if selected_district != "All":
         state_filter = state_filter[state_filter['district_name'] == selected_district]
+        st.write(f"Shape after district_name filter: {state_filter.shape}") # Debugging line
+    st.write("--- End Debugging Model Prediction Tab ---")
+    # --- END ADDED DEBUGGING LINES ---
 
     if not state_filter.empty:
         fig4 = px.line(

@@ -363,7 +363,7 @@ if page_selection == "Model Prediction":
                 yaxis_title="Groundwater Level (m)", # Explicit y-axis title
                 yaxis_range=y_axis_range, # Set the y-axis range
                 xaxis_range=[-1, len(state_filter)], # Explicitly set x-axis range from -1 to length of data
-                render_mode='webgl' # Use WebGL for potentially better rendering performance
+                # Removed render_mode='webgl' as it's not a valid layout property
             )
             st.plotly_chart(fig4, use_container_width=True)
     else:

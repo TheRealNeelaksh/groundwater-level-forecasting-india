@@ -210,14 +210,25 @@ if page_selection == "Model Prediction":
     st.subheader("Actual vs Predicted Groundwater Levels")
 
     predictions_path = Path(__file__).resolve().parent.parent / "models" / "trainingNotebook" / "models" / "results" / "groundwater_predictions.csv"
+    
+    # Check if prediction file exists and provide clear error if not
     if not predictions_path.exists():
-        st.error(f"Prediction file not found at: {predictions_path}")
-        st.stop()
+        st.error(f"❌ Prediction file not found at: `{predictions_path}`")
+        st.warning("Please ensure 'groundwater_predictions.csv' is located at "
+                   "`groundwater-level-forecasting-india/models/trainingNotebook/models/results/` "
+                   "relative to your project's root directory.")
+        st.info("The Model Prediction tab cannot function without this file. "
+                "Please upload or place the file in the correct location.")
+        # Do not stop the app, allow other tabs to function
+        # You might want to display a placeholder or disable the tab if this is critical.
+        st.stop() # Keeping st.stop() for now, as it was in original code, but consider removing for graceful degradation.
+
 
     pred_df = pd.read_csv(predictions_path)
     pred_df.columns = pred_df.columns.str.strip().str.lower()
     
     # Corrected column names for normalization and filtering
+    # Assuming 'state_code' and 'district_code' exist in groundwater_predictions.csv
     pred_df['state_code'] = pred_df['state_code'].fillna('').astype(str).str.strip().str.title()
     pred_df['district_code'] = pred_df['district_code'].fillna('').astype(str).str.strip().str.title()
 
@@ -225,9 +236,10 @@ if page_selection == "Model Prediction":
     required_cols = {'district_code', 'state_code', 'actual_level', 'predicted_level'}
     missing_cols = required_cols - set(pred_df.columns)
     if missing_cols:
-        st.error(f"Missing columns required for prediction visualization: {', '.join(missing_cols)}")
+        st.error(f"Missing columns in prediction file: {', '.join(missing_cols)}")
+        st.warning(f"Expected columns: {required_cols}. Found columns: {set(pred_df.columns)}")
         st.dataframe(pred_df.head())
-        st.stop() 
+        st.stop() # Stop if critical columns are missing
 
     # Filtering using the correct column names
     state_filter = pred_df[pred_df['state_code'] == selected_state]
@@ -244,7 +256,7 @@ if page_selection == "Model Prediction":
         )
         st.plotly_chart(fig4, use_container_width=True)
     else:
-        st.info("No data available for selected filters.")
+        st.info("No data available for selected filters in the prediction dataset.")
 
 # ----------------- TAB 5: Geo Distribution (MAP) ---------------------
 if page_selection == "Geo Distribution":

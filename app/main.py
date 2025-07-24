@@ -246,35 +246,35 @@ if page_selection == "Model Prediction":
 if page_selection == "Geo Distribution":
     st.subheader("Groundwater Level Map - India (Plotly Express)")
 
-    # Use the full 'data' DataFrame for this initial test map
-    map_display_data = data.copy() 
+    # Directly use filtered_data for the map to ensure memory efficiency
+    # This data already contains only the selected state/district's data
+    map_display_data = filtered_data 
 
     if not map_display_data.empty:
         with st.spinner("🌀 Generating map..."): # Specific spinner for map generation
             try:
-                fig_map = px.scatter_map( # Changed to scatter_map
+                # Determine map title based on selected filters
+                map_title = f"Groundwater Levels in {selected_state}"
+                if selected_district != "All":
+                    map_title = f"Groundwater Levels in {selected_district}, {selected_state}"
+
+                fig_map = px.scatter_map(
                     map_display_data,
                     lat="latitude",
                     lon="longitude",
                     color="currentlevel", 
-                    size="currentlevel",  
                     hover_name="district_name",
                     hover_data={"state_name": True, "currentlevel": ":.2f"}, 
                     color_continuous_scale=px.colors.sequential.Viridis, 
-                    zoom=3, # Initial zoom, will be adjusted by fitbounds
-                    title="Groundwater Levels Across India", # Simplified title
+                    title=map_title, 
                     height=600,
-                    # Removed basemap_style from here as it's not an argument for px.scatter_map
                 )
                 fig_map.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
                 
-                # Auto-zoom to fit all locations
+                # Auto-zoom to fit all locations in the filtered data
                 fig_map.update_geos(
                     fitbounds="locations", 
-                    visible=False,
-                    # Set a default background for the map if desired, e.g.,
-                    # showland=True, landcolor="lightgray",
-                    # showocean=True, oceancolor="lightblue"
+                    visible=False, # Hides the default map frame
                 ) 
 
                 st.plotly_chart(fig_map, use_container_width=True)
@@ -282,6 +282,6 @@ if page_selection == "Geo Distribution":
                 st.error(f"❌ An error occurred during Plotly map generation: {map_err}")
                 st.exception(map_err)
     else:
-        st.warning("⚠️ No data available to render the map.")
+        st.warning("⚠️ No data available for the selected filters to render the map. Try selecting a different state or district.")
     
 # ----------------- FOOTER ---------------------

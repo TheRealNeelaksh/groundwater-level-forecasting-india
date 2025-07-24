@@ -451,7 +451,7 @@ if page_selection == "Model Prediction":
             st.plotly_chart(fig_residual, use_container_width=True)
 
             # --- Model Metrics (if available) ---
-            st.subheader("Model Evaluation Metrics")
+            st.subheader("Model Evaluation Metrics (XG Boost)")
             metrics_path = Path(__file__).resolve().parent.parent / "models" / "trainingNotebook" / "models" / "results" / "model_metrics.csv"
             if metrics_path.exists():
                 try:

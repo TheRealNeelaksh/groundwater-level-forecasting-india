@@ -11,14 +11,31 @@ from folium import plugins
 st.set_page_config(page_title="Groundwater EDA Dashboard", layout="wide")
 st.title("📊 Groundwater Level EDA – India")
 
-# Load Data (assuming cleaned CSV is placed in app folder)
+# ----------------- LOAD & CLEAN DATA ---------------------
 @st.cache_data
 def load_data():
+    # Adjust path if necessary based on your deployment structure
+    # For local development, ensure 'dataset/groundwater-DATASET.csv' is correct relative to your script
     data_path = Path(__file__).parent.parent / "dataset" / "groundwater-DATASET.csv"
+    
+    # Add a check for file existence
+    if not data_path.exists():
+        st.error(f"Error: Dataset file not found at {data_path}")
+        st.stop() # Stop the app if data file is missing
+
     df = pd.read_csv(data_path)
+
+    # Normalize column names
     df.columns = df.columns.str.strip().str.lower()
+
+    # Normalize string casing for filters
+    df['state_name'] = df['state_name'].str.strip().str.title()
+    df['district_name'] = df['district_name'].str.strip().str.title()
+
+    # Date parsing
     df['date'] = pd.to_datetime(df['date'], errors='coerce')
     df.dropna(subset=['date', 'currentlevel'], inplace=True)
+
     df['month'] = df['date'].dt.month
     df['year'] = df['date'].dt.year
 
@@ -37,43 +54,36 @@ def load_data():
 
 data = load_data()
 
-# Sidebar Filters
+# ----------------- SIDEBAR FILTERS ---------------------
 st.sidebar.header("Filter the data")
-states = sorted(data['state_name'].dropna().str.title().unique())
+states = sorted(data['state_name'].dropna().unique())
 selected_state = st.sidebar.selectbox("Select State", states)
 
-filtered_data = data[data['state_name'].str.title() == selected_state]
-districts = sorted(filtered_data['district_name'].dropna().str.title().unique())
+filtered_data = data[data['state_name'] == selected_state]
+districts = sorted(filtered_data['district_name'].dropna().unique())
 selected_district = st.sidebar.selectbox("Select District", ["All"] + districts)
 
 if selected_district != "All":
-    filtered_data = filtered_data[filtered_data['district_name'].str.title() == selected_district]
+    filtered_data = filtered_data[filtered_data['district_name'] == selected_district]
 
-# Tabs for Visualization
-viz = st.tabs(["📍 District Analysis",
-               "🌐 State Comparison", 
-               "🌀 Seasonal Trend", 
-                "📈 Model Prediction",
-                "🗺️ Geo Distribution"])
+# ----------------- TABS ---------------------
+viz = st.tabs(["📍 District Analysis", "🌐 State Comparison", "🌀 Seasonal Trend", "📈 Model Prediction", "🗺️ Geo Distribution"])
 
-# --- District View
+# ----------------- TAB 1: District Analysis ---------------------
 with viz[0]:
     st.subheader(f"Average Groundwater Levels – Top Districts in {selected_state}")
     top_districts = filtered_data.groupby('district_name')['currentlevel'].mean().sort_values(ascending=False).head(20).reset_index()
+
     fig1 = px.bar(top_districts, x='currentlevel', y='district_name', orientation='h',
-                 color='currentlevel', color_continuous_scale='viridis',
-                 labels={'currentlevel': 'Avg Water Level (m)', 'district_name': 'District'},
-                 title="Top 20 Districts by Average Water Level")
+                  color='currentlevel', color_continuous_scale='viridis',
+                  labels={'currentlevel': 'Avg Water Level (m)', 'district_name': 'District'},
+                  title="Top 20 Districts by Average Water Level")
     fig1.update_layout(yaxis={'categoryorder':'total ascending'})
     st.plotly_chart(fig1, use_container_width=True)
 
-    # ⬇️ Move this block inside the tab
     st.subheader(f"📽️ District Water Level Change – {selected_state}")
-
     if 'year' in filtered_data.columns:
         top_districts_yearly = filtered_data.groupby(['year', 'district_name'])['currentlevel'].mean().reset_index()
-
-        # Optional: filter to the 10 most frequent districts in this subset
         top10_districts = top_districts_yearly['district_name'].value_counts().head(10).index.tolist()
         top_districts_yearly = top_districts_yearly[top_districts_yearly['district_name'].isin(top10_districts)]
 
@@ -89,128 +99,118 @@ with viz[0]:
         fig_anim.update_layout(yaxis={'categoryorder':'total ascending'})
         st.plotly_chart(fig_anim, use_container_width=True)
 
-    
-
-# --- State Comparison
+# ----------------- TAB 2: State Comparison ---------------------
 with viz[1]:
     st.subheader("Average Groundwater Levels by State")
     state_avg = data.groupby('state_name')['currentlevel'].mean().sort_values(ascending=False).reset_index()
     fig2 = px.bar(state_avg, x='currentlevel', y='state_name', orientation='h',
-                 color='currentlevel', color_continuous_scale='plasma',
-                 labels={'currentlevel': 'Avg Water Level (m)', 'state_name': 'State'},
-                 title="States by Average Groundwater Level")
+                  color='currentlevel', color_continuous_scale='plasma',
+                  labels={'currentlevel': 'Avg Water Level (m)', 'state_name': 'State'},
+                  title="States by Average Groundwater Level")
     fig2.update_layout(yaxis={'categoryorder':'total ascending'})
     st.plotly_chart(fig2, use_container_width=True)
 
-# --- Seasonal Trend
+# ----------------- TAB 3: Seasonal Trend ---------------------
 with viz[2]:
     st.subheader(f"Seasonal Trends in {selected_state}")
     season_avg = filtered_data.groupby('season')['currentlevel'].mean().reset_index()
     fig3 = px.bar(season_avg, x='season', y='currentlevel', color='season',
-                  title="Average Groundwater Level by Season",
-                  labels={'currentlevel': 'Avg Water Level (m)'})
+                   title="Average Groundwater Level by Season",
+                   labels={'currentlevel': 'Avg Water Level (m)'})
     st.plotly_chart(fig3, use_container_width=True)
-    
+
     st.subheader("📽️ Seasonal Line Animation (District vs Year)")
-    st.subheader("Under Construction")
+    st.info("Under Construction")
 
-    # Filter correctly for selected district
-    district_filtered = filtered_data[filtered_data['district_name'].str.title() == selected_district]
-
-    line_anim = px.line(
-        filtered_data,
-        x="season", y="currentlevel",
-        color="district_name",
-        animation_frame="year",
-        title="Seasonal Trend per District (Animated)",
-        labels={"currentlevel": "Water Level (m)"},
-        height = 900,
-        width = 1100
-    )
-
+# ----------------- TAB 4: Model Prediction ---------------------
 with viz[3]:
     st.subheader("📈 Actual vs Predicted Groundwater Levels")
 
-    # Load prediction CSV
-    project_root = Path(__file__).resolve().parent.parent
-    predictions_path = project_root / "models" / "trainingNotebook" / "models" / "results" / "groundwater_predictions.csv"
+    # --- CHANGE THIS LINE ---
+    # Original: predictions_path = Path(__file__).resolve().parent.parent / "models" / "trainingNotebook" / "models" / "results" / "groundwater_predictions.csv"
+    # New: Point to the main dataset
+    predictions_path = Path(__file__).parent.parent / "dataset" / "groundwater-DATASET.csv" # Changed path
 
     if not predictions_path.exists():
         st.error(f"Prediction file not found at: {predictions_path}")
-        st.write("📂 Current working directory:", Path.cwd())
-        st.write("🔍 Expected prediction path:", predictions_path.resolve())
         st.stop()
 
     pred_df = pd.read_csv(predictions_path)
-
-    # Normalize column names
     pred_df.columns = pred_df.columns.str.strip().str.lower()
+    
+    # Robustly convert to string and apply string operations
+    pred_df['state_name'] = pred_df['state_name'].fillna('').astype(str).str.strip().str.title()
+    pred_df['district_name'] = pred_df['district_name'].fillna('').astype(str).str.strip().str.title()
 
-    # Validate required columns
+    # The required_cols check below will likely cause an error or stop the app
+    # because 'actual_level' and 'predicted_level' are not in groundwater-DATASET.csv
     required_cols = {'district_name', 'state_name', 'actual_level', 'predicted_level'}
     missing_cols = required_cols - set(pred_df.columns)
     if missing_cols:
-        st.error(f"❌ Missing columns in predictions.csv: {', '.join(missing_cols)}")
-        st.dataframe(pred_df.head())  # Show what is there for debugging
-        st.stop()
+        st.error(f"Missing columns required for prediction visualization: {', '.join(missing_cols)}")
+        st.dataframe(pred_df.head())
+        st.stop() # This will stop the app if the required columns are missing
 
-    # Title-case for filtering consistency
-    pred_df['district_name'] = pred_df['district_name'].str.title()
-    pred_df['state_name'] = pred_df['state_name'].str.title()
-
-    # Apply filters
     state_filter = pred_df[pred_df['state_name'] == selected_state]
     if selected_district != "All":
         state_filter = state_filter[state_filter['district_name'] == selected_district]
 
-    # Plot actual vs predicted
     if not state_filter.empty:
         fig4 = px.line(
             state_filter,
             x=state_filter.index,
-            y=["actual_level", "predicted_level"],
+            y=["actual_level", "predicted_level"], # These columns won't exist in groundwater-DATASET.csv
             labels={"value": "Groundwater Level (m)", "index": "Sample Index"},
             title=f"Actual vs Predicted Groundwater Levels – {selected_district}, {selected_state}"
         )
         st.plotly_chart(fig4, use_container_width=True)
     else:
-        st.info("ℹ️ No data available for selected filters.")
+        st.info("No data available for selected filters.")
 
+# ----------------- TAB 5: Geo Distribution (MAP) ---------------------
 with viz[4]:
     st.subheader("🗺️ Groundwater Level Map – India (Folium)")
     st.write("🧭 State Filter:", selected_state)
-    with st.spinner("🌀 Loading groundwater map..."):
+    st.write("🏙️ District Filter:", selected_district)
 
+    with st.spinner("🌀 Loading groundwater map..."):
         try:
-            # Step 1: Validate and parse lat/lon
+            # Debugging: Check initial data size
+            st.write(f"📊 Initial data shape: {data.shape}")
+
+            # Ensure latitude and longitude are numeric
             data['latitude'] = pd.to_numeric(data['latitude'], errors='coerce')
             data['longitude'] = pd.to_numeric(data['longitude'], errors='coerce')
+
+            # Drop rows with invalid coordinates or missing water level
             map_data = data.dropna(subset=['latitude', 'longitude', 'currentlevel'])
+            # Debugging: Check data shape after dropping NaNs
+            st.write(f"📊 Data shape after dropping NaNs (for map): {map_data.shape}")
 
-            # Step 2: Apply filters
-            filtered_map_data = map_data.copy()
-            st.write("📍 District Filter:", selected_district)
-            st.write("🔢 Filtered Map Rows:", len(filtered_map_data))
-            st.dataframe(filtered_map_data.head())
-            if selected_state:
-                filtered_map_data = filtered_map_data[
-                    filtered_map_data['state_name'].str.title() == selected_state
-                ]
+            # Ensure state/district are string (for filtering)
+            map_data['state_name'] = map_data['state_name'].astype(str).str.strip().str.title()
+            map_data['district_name'] = map_data['district_name'].astype(str).str.strip().str.title()
+
+            # Apply filters
+            filtered_map_data = map_data[map_data['state_name'] == selected_state]
             if selected_district != "All":
-                filtered_map_data = filtered_map_data[
-                    filtered_map_data['district_name'].str.title() == selected_district
-                ]
+                filtered_map_data = filtered_map_data[filtered_map_data['district_name'] == selected_district]
 
-            # Step 3: Display map
+            st.write(f"📍 Filtered map points: {len(filtered_map_data)}")
+
+            # Debugging: Show first few rows of filtered data if available
             if not filtered_map_data.empty:
-                # Initialize Folium map (centered on India)
+                st.write("First 5 rows of data for mapping:")
+                st.dataframe(filtered_map_data[['state_name', 'district_name', 'latitude', 'longitude', 'currentlevel']].head())
+
+                # Initialize Folium map centered on India
                 m = folium.Map(location=[22.5937, 78.9629], zoom_start=5)
                 marker_cluster = plugins.MarkerCluster().add_to(m)
 
                 for _, row in filtered_map_data.iterrows():
                     popup_html = f"""
-                        <b>State:</b> {row['state_name'].title()}<br>
-                        <b>District:</b> {row['district_name'].title()}<br>
+                        <b>State:</b> {row['state_name']}<br>
+                        <b>District:</b> {row['district_name']}<br>
                         <b>Water Level:</b> {row['currentlevel']} m
                     """
                     folium.Marker(
@@ -219,18 +219,14 @@ with viz[4]:
                         icon=folium.Icon(color='blue', icon='tint', prefix='fa')
                     ).add_to(marker_cluster)
 
-                # Render in Streamlit
+                # Render map in Streamlit
                 st.components.v1.html(folium.Figure().add_child(m).render(), height=600)
 
             else:
-                st.warning("⚠️ No valid groundwater data for the selected state/district.")
+                st.warning("⚠️ No valid groundwater data for the selected filters. Try a different state or district.")
 
         except Exception as e:
             st.error("❌ An error occurred while rendering the map.")
             st.exception(e)
 
-
-
-
-st.markdown("---")
-st.caption("Built as a project · Groundwater Level Dashboard 🇮🇳")
+# ----------------- FOOTER ---------------------

@@ -225,14 +225,12 @@ if page_selection == "Model Prediction":
     pred_df = pd.read_csv(predictions_path)
     pred_df.columns = pred_df.columns.str.strip().str.lower()
     
-    # Corrected column names for normalization and filtering
-    # Assuming 'state_code' and 'district_code' exist in groundwater_predictions.csv
-    pred_df['state_code'] = pred_df['state_code'].fillna('').astype(str).str.strip().str.title()
-    pred_df['district_code'] = pred_df['district_code'].fillna('').astype(str).str.strip().str.title()
+    # Use 'state_name' and 'district_name' for filtering as they exist in the prediction file
+    pred_df['state_name'] = pred_df['state_name'].fillna('').astype(str).str.strip().str.title()
+    pred_df['district_name'] = pred_df['district_name'].fillna('').astype(str).str.strip().str.title()
 
-    # Updated required columns to match the provided schema
-    # Changed 'actual_level' to 'currentlevel' and 'predicted_level' to 'predicted_currentlevel'
-    required_cols = {'district_code', 'state_code', 'currentlevel', 'predicted_currentlevel'}
+    # Updated required columns to match the actual columns found in your prediction file
+    required_cols = {'district_name', 'state_name', 'currentlevel', 'predicted_currentlevel'}
     missing_cols = required_cols - set(pred_df.columns)
     if missing_cols:
         st.error(f"Missing columns in prediction file: {', '.join(missing_cols)}")
@@ -240,10 +238,10 @@ if page_selection == "Model Prediction":
         st.dataframe(pred_df.head())
         st.stop() # Stop if critical columns are missing
 
-    # Filtering using the correct column names
-    state_filter = pred_df[pred_df['state_code'] == selected_state]
+    # Filtering using the correct column names: 'state_name' and 'district_name'
+    state_filter = pred_df[pred_df['state_name'] == selected_state]
     if selected_district != "All":
-        state_filter = state_filter[state_filter['district_code'] == selected_district]
+        state_filter = state_filter[state_filter['district_name'] == selected_district]
 
     if not state_filter.empty:
         fig4 = px.line(

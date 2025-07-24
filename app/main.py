@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import plotly.express as px
 from pathlib import Path
 import numpy as np
+import folium
 
 st.set_page_config(page_title="Groundwater EDA Dashboard", layout="wide")
 st.title("📊 Groundwater Level EDA – India")
@@ -175,36 +176,44 @@ with viz[3]:
         st.info("ℹ️ No data available for selected filters.")
 
 with viz[4]:
-    st.subheader("🗺️ Groundwater Level Map (Log Scale) – India (Interactive)")
+    st.subheader("🗺️ Groundwater Level Map – India (Folium)")
 
-    # Ensure longitude & latitude are numeric
+    # Ensure lat/lon are numeric
     data['latitude'] = pd.to_numeric(data['latitude'], errors='coerce')
     data['longitude'] = pd.to_numeric(data['longitude'], errors='coerce')
     map_data = data.dropna(subset=['latitude', 'longitude', 'currentlevel'])
 
-    if not map_data.empty:
-        fig_map = px.scatter_geo(
-            map_data,
-            lat='latitude',
-            lon='longitude',
-            color=np.log1p(map_data['currentlevel']),
-            color_continuous_scale="Viridis",
-            hover_name="district_name",
-            hover_data={"state_name": True, "currentlevel": True, "latitude": False, "longitude": False},
-            projection="natural earth",
-            title="📍 Log-Scaled Groundwater Levels Across India"
-        )
-        fig_map.update_geos(
-            fitbounds="locations",
-            visible=False
-        )
-        fig_map.update_layout(
-            coloraxis_colorbar=dict(title="log(Level + 1)"),
-            margin={"r":0,"t":50,"l":0,"b":0}
-        )
-        st.plotly_chart(fig_map, use_container_width=True)
+    # Apply filters
+    filtered_map_data = map_data.copy()
+    if selected_state:
+        filtered_map_data = filtered_map_data[filtered_map_data['state_name'].str.title() == selected_state]
+    if selected_district != "All":
+        filtered_map_data = filtered_map_data[filtered_map_data['district_name'].str.title() == selected_district]
+
+    if not filtered_map_data.empty:
+        # Center of India (approx)
+        m = folium.Map(location=[22.5937, 78.9629], zoom_start=5)
+
+        # Add markers
+        marker_cluster = plugins.MarkerCluster().add_to(m)
+
+        for _, row in filtered_map_data.iterrows():
+            popup_content = f"""
+            <b>State:</b> {row['state_name'].title()}<br>
+            <b>District:</b> {row['district_name'].title()}<br>
+            <b>Water Level:</b> {row['currentlevel']} m
+            """
+            folium.Marker(
+                location=[row['latitude'], row['longitude']],
+                popup=folium.Popup(popup_content, max_width=300),
+                icon=folium.Icon(color='blue', icon='tint', prefix='fa')
+            ).add_to(marker_cluster)
+
+        # Render Folium map in Streamlit
+        st.components.v1.html(folium.Figure().add_child(m).render(), height=600)
     else:
-        st.warning("⚠️ Data for mapping is missing latitude or longitude.")
+        st.warning("⚠️ No valid lat/lon groundwater data available for the selected region.")
+
 
 
 

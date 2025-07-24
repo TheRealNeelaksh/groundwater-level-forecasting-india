@@ -13,3 +13,6 @@ xgboost
 
 # WebHosting or Basic GUI
 streamlit
+
+# Map Plotting
+folium

@@ -219,9 +219,7 @@ if page_selection == "Model Prediction":
                    "relative to your project's root directory.")
         st.info("The Model Prediction tab cannot function without this file. "
                 "Please upload or place the file in the correct location.")
-        # Do not stop the app, allow other tabs to function
-        # You might want to display a placeholder or disable the tab if this is critical.
-        st.stop() # Keeping st.stop() for now, as it was in original code, but consider removing for graceful degradation.
+        st.stop() 
 
 
     pred_df = pd.read_csv(predictions_path)
@@ -233,7 +231,8 @@ if page_selection == "Model Prediction":
     pred_df['district_code'] = pred_df['district_code'].fillna('').astype(str).str.strip().str.title()
 
     # Updated required columns to match the provided schema
-    required_cols = {'district_code', 'state_code', 'actual_level', 'predicted_level'}
+    # Changed 'actual_level' to 'currentlevel' and 'predicted_level' to 'predicted_currentlevel'
+    required_cols = {'district_code', 'state_code', 'currentlevel', 'predicted_currentlevel'}
     missing_cols = required_cols - set(pred_df.columns)
     if missing_cols:
         st.error(f"Missing columns in prediction file: {', '.join(missing_cols)}")
@@ -250,7 +249,8 @@ if page_selection == "Model Prediction":
         fig4 = px.line(
             state_filter,
             x=state_filter.index,
-            y=["actual_level", "predicted_level"], 
+            # Changed y-axis columns to 'currentlevel' and 'predicted_currentlevel'
+            y=["currentlevel", "predicted_currentlevel"], 
             labels={"value": "Groundwater Level (m)", "index": "Sample Index"},
             title=f"Actual vs Predicted Groundwater Levels – {selected_district}, {selected_state}"
         )

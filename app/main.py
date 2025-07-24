@@ -452,7 +452,7 @@ if page_selection == "Model Prediction":
 
             # --- Model Metrics (if available) ---
             st.subheader("Model Evaluation Metrics")
-            metrics_path = Path(__file__).resolve().parent.parent / "models" / "trainingNotebook" / "models" / "results" / "model_metrics.csv"
+            metrics_path = Path(__file__).resolve().parent.parent / "trainingNotebook" / "models" / "results" / "model_metrics.csv"
             if metrics_path.exists():
                 try:
                     metrics_df = pd.read_csv(metrics_path)

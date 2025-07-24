@@ -323,44 +323,151 @@ if page_selection == "Model Prediction":
             y_range_buffer = (overall_max_y - overall_min_y) * 0.1
             y_axis_range = [overall_min_y - y_range_buffer, overall_max_y + y_range_buffer]
 
-            # Create individual scatter traces for Actual and Predicted
-            trace_actual = go.Scatter(
-                x=state_filter["plot_index"],
-                y=state_filter["currentlevel"],
-                mode='lines+markers',
-                name='Actual Level',
-                marker=dict(color='blue', size=6),
-                line=dict(color='blue', width=2),
-                hoverinfo='text',
-                text=[f"Actual: {val:.2f}m<br>State: {s}<br>District: {d}" for val, s, d in zip(state_filter['currentlevel'], state_filter['state_name'], state_filter['district_name'])]
+            # Convert to long format for plotting multiple lines
+            df_long = state_filter.melt(
+                id_vars=['plot_index', 'state_name', 'district_name'],
+                value_vars=['currentlevel', 'predicted_currentlevel'],
+                var_name='level_type',
+                value_name='level_value'
             )
+            # Map level_type to more readable names for legend/hover
+            df_long['level_type'] = df_long['level_type'].map({
+                'currentlevel': 'Actual Level',
+                'predicted_currentlevel': 'Predicted Level'
+            })
 
-            trace_predicted = go.Scatter(
-                x=state_filter["plot_index"],
-                y=state_filter["predicted_currentlevel"],
-                mode='lines+markers',
-                name='Predicted Level',
-                marker=dict(color='red', size=6),
-                line=dict(color='red', width=2),
-                hoverinfo='text',
-                text=[f"Predicted: {val:.2f}m<br>State: {s}<br>District: {d}" for val, s, d in zip(state_filter['predicted_currentlevel'], state_filter['state_name'], state_filter['district_name'])]
-            )
-
-            fig4 = go.Figure(data=[trace_actual, trace_predicted])
-
-            fig4.update_layout(
+            fig4 = px.line(
+                df_long,
+                x="plot_index", # Use the new simple index column for x-axis
+                y="level_value", # Plot the value
+                color="level_type", # Differentiate lines by level type
+                labels={
+                    "level_value": "Groundwater Level (m)", 
+                    "plot_index": "Data Point Index",
+                    "level_type": "Level Type" # Label for the color legend
+                },
                 title=f"Actual vs Predicted Groundwater Levels – {selected_district}, {selected_state}",
-                xaxis_title="Data Point Index",
-                yaxis_title="Groundwater Level (m)",
-                yaxis_range=y_axis_range,
-                xaxis_range=[-1, len(state_filter)],
-                template="plotly_white",
-                hovermode="x unified",
-                height=600
+                markers=True, # Add markers for data points
+                template="plotly_white", # Use a clean white background template
+                hover_data={ # Customize hover information
+                    "level_value": ":.2f", # Show value with 2 decimal places
+                    "level_type": False, # Hide level_type from default hover box as it's in color
+                    "state_name": True,
+                    "district_name": True,
+                    "plot_index": False # Hide the new index from hover if not needed
+                }
+            )
+            fig4.update_layout(
+                hovermode="x unified", # Show unified hover for all traces at an x-position
+                xaxis_title="Data Point Index", # Explicit x-axis title
+                yaxis_title="Groundwater Level (m)", # Explicit y-axis title
+                yaxis_range=y_axis_range, # Set the y-axis range
+                xaxis_range=[-1, len(state_filter)], # Explicitly set x-axis range from -1 to length of data
+                # Removed render_mode='webgl' as it's not a valid layout property
             )
             st.plotly_chart(fig4, use_container_width=True)
     else:
         st.info("No data available for selected filters in the prediction dataset.")
+
+    # --- New Scatter Plot for Overall Model Performance ---
+    st.subheader("Overall Model Performance: Actual vs Predicted (All Data)")
+    
+    # Ensure pred_df is available and has required columns
+    if 'pred_df' in locals() and not pred_df.empty and \
+       'currentlevel' in pred_df.columns and 'predicted_currentlevel' in pred_df.columns:
+        
+        # Ensure columns are numeric for plotting
+        pred_df['currentlevel_numeric'] = pd.to_numeric(pred_df['currentlevel'], errors='coerce')
+        pred_df['predicted_currentlevel_numeric'] = pd.to_numeric(pred_df['predicted_currentlevel'], errors='coerce')
+        
+        # Drop NaNs for plotting
+        plot_df_overall = pred_df.dropna(subset=['currentlevel_numeric', 'predicted_currentlevel_numeric'])
+
+        if not plot_df_overall.empty:
+            # Create the scatter plot
+            fig_scatter = px.scatter(
+                plot_df_overall,
+                x="currentlevel_numeric",
+                y="predicted_currentlevel_numeric",
+                labels={
+                    "currentlevel_numeric": "Actual Groundwater Level (m)",
+                    "predicted_currentlevel_numeric": "Predicted Groundwater Level (m)"
+                },
+                title="Overall Actual vs Predicted Groundwater Levels",
+                template="plotly_white",
+                height=600,
+                hover_data={
+                    "state_name": True,
+                    "district_name": True,
+                    "currentlevel_numeric": ":.2f",
+                    "predicted_currentlevel_numeric": ":.2f"
+                }
+            )
+
+            # Add the y=x diagonal line for perfect prediction
+            max_val = max(plot_df_overall['currentlevel_numeric'].max(), plot_df_overall['predicted_currentlevel_numeric'].max())
+            min_val = min(plot_df_overall['currentlevel_numeric'].min(), plot_df_overall['predicted_currentlevel_numeric'].min())
+            
+            fig_scatter.add_trace(go.Scatter(
+                x=[min_val, max_val], y=[min_val, max_val],
+                mode='lines',
+                line=dict(color='black', dash='dash'),
+                name='Perfect Prediction',
+                hoverinfo='none'
+            ))
+
+            fig_scatter.update_layout(
+                xaxis_title="Actual Groundwater Level (m)",
+                yaxis_title="Predicted Groundwater Level (m)",
+                showlegend=True,
+                xaxis_range=[min_val - (max_val-min_val)*0.05, max_val + (max_val-min_val)*0.05],
+                yaxis_range=[min_val - (max_val-min_val)*0.05, max_val + (max_val-min_val)*0.05]
+            )
+            st.plotly_chart(fig_scatter, use_container_width=True)
+
+            # --- Residual Plot ---
+            st.subheader("Residual Plot: Actual vs. Prediction Error")
+            plot_df_overall['residual'] = plot_df_overall['predicted_currentlevel_numeric'] - plot_df_overall['currentlevel_numeric']
+            fig_residual = px.scatter(
+                plot_df_overall,
+                x="currentlevel_numeric",
+                y="residual",
+                labels={
+                    "currentlevel_numeric": "Actual Groundwater Level (m)",
+                    "residual": "Prediction Error (Predicted - Actual) (m)"
+                },
+                title="Residual Plot",
+                template="plotly_white",
+                height=400,
+                hover_data={
+                    "state_name": True,
+                    "district_name": True,
+                    "currentlevel_numeric": ":.2f",
+                    "predicted_currentlevel_numeric": ":.2f",
+                    "residual": ":.2f"
+                }
+            )
+            fig_residual.add_hline(y=0, line_dash="dash", line_color="black", annotation_text="Zero Error")
+            st.plotly_chart(fig_residual, use_container_width=True)
+
+            # --- Model Metrics (if available) ---
+            st.subheader("Model Evaluation Metrics (Random Forest Regressor)")
+            metrics_path = Path(__file__).resolve().parent.parent / "models" / "trainingNotebook" / "models" / "results" / "model_metrics.csv"
+            if metrics_path.exists():
+                try:
+                    metrics_df = pd.read_csv(metrics_path)
+                    metrics_df.columns = metrics_df.columns.str.strip().str.lower()
+                    st.dataframe(metrics_df)
+                except Exception as met_err:
+                    st.warning(f"Could not load model metrics: {met_err}")
+            else:
+                st.info("Model metrics file (model_metrics.csv) not found. Cannot display detailed metrics.")
+
+        else:
+            st.info("No valid numeric data for overall model performance visualization after cleaning.")
+    else:
+        st.info("Prediction data is not available or is empty for overall model performance visualization.")
+
 
 # ----------------- TAB 5: Geo Distribution (MAP) ---------------------
 if page_selection == "Geo Distribution":

@@ -243,8 +243,43 @@ if page_selection == "Seasonal Trend":
     else:
         st.info("No data available for seasonal trend analysis with current filters.")
 
-    st.subheader("Seasonal Line Animation (District vs Year)")
-    st.info("Under Construction")
+    st.subheader("Seasonal Line Graph by District (Average Level)")
+    # New simple line graph for Seasonal Trend Tab
+    if 'year' in filtered_data.columns and 'season' in filtered_data.columns and 'district_name' in filtered_data.columns and not filtered_data.empty:
+        # Group data for the line graph: mean currentlevel by year, season, district
+        seasonal_district_data = filtered_data.groupby(['year', 'season', 'district_name'])['currentlevel'].mean().reset_index()
+        
+        # Ensure there's enough data to plot meaningfully
+        if len(seasonal_district_data['district_name'].unique()) > 0:
+            fig_seasonal_line = px.line(
+                seasonal_district_data,
+                x="season", # X-axis will be season
+                y="currentlevel", # Y-axis will be current level
+                color="district_name", # Color lines by district
+                facet_col="year", # Create a separate column for each year
+                facet_col_wrap=4, # Wrap columns after 4 plots
+                labels={
+                    "currentlevel": "Avg Water Level (m)",
+                    "season": "Season",
+                    "district_name": "District"
+                },
+                title=f"Average Seasonal Groundwater Levels by District in {selected_state} Over Years",
+                markers=True, # Show markers for data points
+                height=600,
+                template="plotly_white"
+            )
+            # Ensure the x-axis (season) order is correct
+            fig_seasonal_line.update_layout(
+                xaxis={'categoryorder':'array', 'categoryarray': ['Winter', 'Summer', 'Monsoon', 'Post-Monsoon']},
+                yaxis_title="Avg Water Level (m)",
+                hovermode="x unified"
+            )
+            fig_seasonal_line.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1])) # Clean up facet titles
+            st.plotly_chart(fig_seasonal_line, use_container_width=True)
+        else:
+            st.info("Not enough district data to create a seasonal line graph.")
+    else:
+        st.info("No data available for seasonal line graph with current filters.")
 
 # ----------------- TAB 4: Model Prediction ---------------------
 if page_selection == "Model Prediction":
@@ -363,7 +398,6 @@ if page_selection == "Model Prediction":
                 yaxis_title="Groundwater Level (m)", # Explicit y-axis title
                 yaxis_range=y_axis_range, # Set the y-axis range
                 xaxis_range=[-1, len(state_filter)], # Explicitly set x-axis range from -1 to length of data
-                # Removed render_mode='webgl' as it's not a valid layout property
             )
             st.plotly_chart(fig4, use_container_width=True)
     else:
@@ -451,7 +485,7 @@ if page_selection == "Model Prediction":
             st.plotly_chart(fig_residual, use_container_width=True)
 
             # --- Model Metrics (if available) ---
-            st.subheader("Model Evaluation Metrics (XG Boost)")
+            st.subheader("Model Evaluation Metrics")
             metrics_path = Path(__file__).resolve().parent.parent / "models" / "trainingNotebook" / "models" / "results" / "model_metrics.csv"
             if metrics_path.exists():
                 try:

@@ -292,7 +292,6 @@ if page_selection == "Model Prediction":
 
         if state_filter.empty:
             st.info("No valid numeric data points remain for plotting after cleaning in the prediction dataset.")
-            # Do not return here, let the outer 'else' handle the "No data available" message.
         else:
             # Create a simple numerical index for plotting to avoid issues with original index
             state_filter = state_filter.reset_index(drop=True)

@@ -25,7 +25,7 @@ def load_data_and_status():
         if not data_path.exists():
             messages.append(("error", f"🚨 Fatal Error: Dataset file not found at: `{data_path}`"))
             messages.append(("error", "Please ensure 'groundwater-DATASET.csv' is in the 'dataset' folder, which should be a sibling to your 'app' folder (where this script is located)."))
-            return None, messages
+            return None, None, messages
 
         df = pd.read_csv(data_path)
         messages.append(("success", f"Dataset '{data_path.name}' loaded successfully! Initial shape: {df.shape}"))
@@ -39,11 +39,32 @@ def load_data_and_status():
         df['longitude'] = pd.to_numeric(df['longitude'], errors='coerce')
         messages.append(("info", "Latitude and Longitude columns converted to numeric."))
 
-        # Normalize string casing for filters
-        # These are for the main 'data' DataFrame used in other tabs
+        # Normalize string casing for filters and create mapping
         df['state_name'] = df['state_name'].astype(str).str.strip().str.title()
         df['district_name'] = df['district_name'].astype(str).str.strip().str.title()
         messages.append(("info", "State and District names normalized."))
+
+        # Create mapping dictionaries from the main dataset (groundwater-DATASET.csv)
+        # Ensure 'state_code' and 'district_code' columns exist in groundwater-DATASET.csv
+        state_code_to_name_map = {}
+        district_code_to_name_map = {}
+
+        if 'state_code' in df.columns and 'state_name' in df.columns:
+            # Create a mapping from state_code (as string) to state_name
+            temp_df_state_map = df[['state_code', 'state_name']].drop_duplicates().dropna()
+            state_code_to_name_map = dict(zip(temp_df_state_map['state_code'].astype(str), temp_df_state_map['state_name']))
+            messages.append(("info", f"Created state code to name map with {len(state_code_to_name_map)} entries."))
+        else:
+            messages.append(("warning", "Could not create state code to name map: 'state_code' or 'state_name' column missing in main dataset."))
+
+        if 'district_code' in df.columns and 'district_name' in df.columns:
+            # Create a mapping from district_code (as string) to district_name
+            temp_df_district_map = df[['district_code', 'district_name']].drop_duplicates().dropna()
+            district_code_to_name_map = dict(zip(temp_df_district_map['district_code'].astype(str), temp_df_district_map['district_name']))
+            messages.append(("info", f"Created district code to name map with {len(district_code_to_name_map)} entries."))
+        else:
+            messages.append(("warning", "Could not create district code to name map: 'district_code' or 'district_name' column missing in main dataset."))
+
 
         # Date parsing
         df['date'] = pd.to_datetime(df['date'], errors='coerce')
@@ -70,15 +91,15 @@ def load_data_and_status():
         messages.append(("info", "Season column added."))
         
         messages.append(("success", "Data loading and initial cleaning complete."))
-        return df, messages
+        return df, {'state_map': state_code_to_name_map, 'district_map': district_code_to_name_map}, messages
     except Exception as e:
         messages.append(("error", f"❌ An error occurred during data loading or initial cleaning: {e}"))
-        return None, messages
+        return None, None, messages
 
 # Display loading messages and load data
 with initial_loading_placeholder.container():
     st.info("Initializing dashboard...")
-    data, loading_messages = load_data_and_status()
+    data, mapping_dicts, loading_messages = load_data_and_status()
     
     for msg_type, msg_text in loading_messages:
         if msg_type == "info":
@@ -91,7 +112,7 @@ with initial_loading_placeholder.container():
             st.stop()
 
 # If data loaded successfully, set a session state flag and clear the placeholder
-if data is not None:
+if data is not None and mapping_dicts is not None:
     initial_loading_placeholder.empty()
     if 'dashboard_ready_message_shown' not in st.session_state:
         st.session_state.dashboard_ready_message_shown = False
@@ -225,9 +246,22 @@ if page_selection == "Model Prediction":
     pred_df = pd.read_csv(predictions_path)
     pred_df.columns = pred_df.columns.str.strip().str.lower()
     
-    # Use 'state_name' and 'district_name' for filtering as they exist in the prediction file
-    pred_df['state_name'] = pred_df['state_name'].fillna('').astype(str).str.strip().str.title()
-    pred_df['district_name'] = pred_df['district_name'].fillna('').astype(str).str.strip().str.title()
+    # Apply mapping from state_code/district_code to state_name/district_name
+    # Ensure the columns 'state_code' and 'district_code' exist in pred_df
+    if 'state_code' in pred_df.columns and 'state_map' in mapping_dicts:
+        pred_df['state_name_mapped'] = pred_df['state_code'].astype(str).map(mapping_dicts['state_map']).fillna(pred_df['state_name'])
+        pred_df['state_name'] = pred_df['state_name_mapped'] # Overwrite with mapped name
+    else:
+        # Fallback if mapping not available or state_code missing in pred_df
+        pred_df['state_name'] = pred_df['state_name'].fillna('').astype(str).str.strip().str.title()
+
+    if 'district_code' in pred_df.columns and 'district_map' in mapping_dicts:
+        pred_df['district_name_mapped'] = pred_df['district_code'].astype(str).map(mapping_dicts['district_map']).fillna(pred_df['district_name'])
+        pred_df['district_name'] = pred_df['district_name_mapped'] # Overwrite with mapped name
+    else:
+        # Fallback if mapping not available or district_code missing in pred_df
+        pred_df['district_name'] = pred_df['district_name'].fillna('').astype(str).str.strip().str.title()
+
 
     # Updated required columns to match the actual columns found in your prediction file
     required_cols = {'district_name', 'state_name', 'currentlevel', 'predicted_currentlevel'}

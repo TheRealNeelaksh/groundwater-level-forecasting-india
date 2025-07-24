@@ -34,11 +34,30 @@ def load_data_and_status():
             messages.append(("error", "Please ensure 'groundwater-DATASET.csv' is in the 'dataset' folder, which should be a sibling to your 'app' folder (where this script is located)."))
             return None, None, messages
 
-        df = pd.read_csv(data_path)
+        df = pd.DataFrame() # Initialize df as empty DataFrame
+        try:
+            df = pd.read_csv(data_path)
+        except pd.errors.EmptyDataError:
+            messages.append(("error", f"❌ Error: The file '{data_path.name}' is empty."))
+            messages.append(("error", "Please ensure the CSV file contains data."))
+            return None, None, messages
+        except Exception as e:
+            messages.append(("error", f"❌ Error reading CSV file '{data_path.name}': {e}"))
+            messages.append(("error", "Attempting to read first few lines for inspection..."))
+            try:
+                with open(data_path, 'r', encoding='utf-8') as f:
+                    first_lines = [next(f) for _ in range(5)] # Read first 5 lines
+                messages.append(("error", "First 5 lines of the file:"))
+                for line_num, line in enumerate(first_lines):
+                    messages.append(("error", f"  Line {line_num + 1}: {line.strip()}"))
+                messages.append(("error", "Please check the file's content and format (e.g., delimiters, headers, encoding)."))
+            except Exception as read_err:
+                messages.append(("error", f"Could not read file content for inspection: {read_err}"))
+            return None, None, messages
         
-        if df.empty:
-            messages.append(("error", f"❌ Error: The file '{data_path.name}' was loaded but appears to be empty or unreadable by pandas."))
-            messages.append(("error", "Please check if the CSV file contains data and is not corrupted."))
+        if df.empty: # This check is redundant if EmptyDataError is caught, but good for other cases
+            messages.append(("error", f"❌ Error: The file '{data_path.name}' was loaded but resulted in an empty DataFrame."))
+            messages.append(("error", "This might indicate a problem with the file's structure or content."))
             return None, None, messages
 
         messages.append(("success", f"Dataset '{data_path.name}' loaded successfully! Initial shape: {df.shape}"))
